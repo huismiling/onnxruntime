@@ -9,6 +9,14 @@
 
 using namespace ::ONNX_NAMESPACE;
 
+namespace ONNX_NAMESPACE {
+void matmulShapeInference(
+    ONNX_NAMESPACE::InferenceContext& ctx,
+    int input1Idx,
+    int input2Idx);
+
+}  // namespace ONNX_NAMESPACE
+
 namespace onnxruntime {
 namespace contrib {
 
@@ -92,7 +100,7 @@ ONNX_MS_OPERATOR_SET_SCHEMA(Attention, 1,
 
 constexpr const char* Longformer_Attention_doc = R"DOC(
 Longformer Self Attention with a local context and a global context. Tokens attend locally: Each token
-attends to its W previous tokens and W succeding tokens with W being the window length. A selected few tokens
+attends to its W previous tokens and W succeeding tokens with W being the window length. A selected few tokens
 attend globally to all other tokens.
 
 The attention mask is of shape (batch_size, sequence_length), where sequence_length is a multiple of 2W after padding.
@@ -285,5 +293,23 @@ ONNX_MS_OPERATOR_SET_SCHEMA(BifurcationDetector, 1,
                                   // and current tokens length.
                                   // tokens_length = cur_tokens_length + bifurcation_index + 1.
                                 }));
+
+constexpr const char* GemmFastGelu_ver1_doc = R"DOC(
+It's a fusion of MatMul and FastGelu.)DOC";
+
+ONNX_MS_OPERATOR_SET_SCHEMA(GemmFastGelu, 1,
+                            OpSchema()
+                                .SetDoc(GemmFastGelu_ver1_doc)
+                                .Input(0, "X", "input tensor", "T")
+                                .Input(1, "W", "input tensor", "T")
+                                .Input(2, "bias", "bias tensor", "T", OpSchema::Optional)
+                                .Output(0, "Y", "output tensor", "T")
+                                .TypeConstraint("T", {"tensor(float)", "tensor(float16)", "tensor(bfloat16)"},
+                                                "Constrain input and output types to float or half tensors.")
+                                .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
+                                  ONNX_NAMESPACE::propagateElemTypeFromInputToOutput(ctx, 0, 0);
+                                  ONNX_NAMESPACE::matmulShapeInference(ctx, 0, 1);
+                                }));
+
 }
 }  // namespace onnxruntime
